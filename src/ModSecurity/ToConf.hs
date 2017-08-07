@@ -3,7 +3,7 @@
 
 module ModSecurity.ToConf where
 
-import Data.Text as T hiding (map, intersperse)
+import Data.Text as T hiding (map, intersperse, filter)
 import Data.Monoid
 import Data.List
 
@@ -61,6 +61,9 @@ instance ToConf Operator where
     PmFromFile    -> "pmFromFile"
     (Not op)      -> "!" <> toConf op
 
+condString p str =
+  if p then str else ""
+
 instance ToConf Rule where
   toConf rule = "SecRule " 
     <> toConf (vars rule) <> " \""
@@ -72,24 +75,31 @@ instance ToConf Rule where
       , "id:" <> toConf (rid rule)
       , toConf (msg rule)
       , "phase:" <> pack (show $ phase rule)
-      , chainstr
+      , condString isChained "chain"
       ]
-    <> if chain rule then "\n" <> toSubsequent "    " (nextRule rule) else ""
-        where chainstr = if chain rule then "chain" else ""
+    <> (condString isChained $ "\n" <> showSubsequent "    " (nextRule rule))
+    <> "\""
+        where isChained = chain rule
               options :: [Text] -> Text
-              options = mconcat . intersperse ","
+              options = mconcat . intersperse "," . filter (/= "")
 
-class ToSubsequent a where
-  toSubsequent :: Text -> a -> Text
-
-instance ToSubsequent (Maybe Rule) where
-  toSubsequent _ Nothing = ""
-  toSubsequent prefix (Just rule) = prefix <> "SecRule "
+showSubsequent :: Text -> Maybe Rule -> Text
+showSubsequent _ Nothing = ""
+showSubsequent prefix (Just rule) = 
+  prefix <> "SecRule"
     <> toConf (vars rule) <> " \""
     <> toConf (operator rule) <> " "
     <> argument rule <> "\" \""
-    <> options [ toConf $ msg rule, chainstr ]
-    <> if chain rule then "\n" <> toSubsequent (prefix <> "    ") (nextRule rule) else ""
-    where chainstr = if chain rule then (",chain"::Text) else ""
-          options :: [Text] -> Text
-          options  = mconcat . intersperse ","
+    <> options
+      [ toConf (action rule)
+      , toConf (transforms rule)
+      , "id:" <> toConf (rid rule)
+      , toConf (msg rule)
+      , "phase:" <> pack (show $ phase rule)
+      , chainstr
+      ]
+    <> if chain rule then "\n" <> showSubsequent (prefix <> "    ") (nextRule rule) else ""
+    <> "\""
+        where chainstr = if chain rule then "chain" else ""
+              options :: [Text] -> Text
+              options = mconcat . intersperse "," . filter (/= "")

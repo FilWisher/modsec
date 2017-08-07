@@ -148,8 +148,8 @@ msgPart = choice
 
 msgParts = msgPart `sepBy` char ','
 
-parseRule :: Parser Rule
-parseRule = do
+parseBaseRule :: Parser Rule
+parseBaseRule = do
   string "SecRule"
   space
   vars' <- parseVariables
@@ -167,11 +167,30 @@ parseRule = do
   char '"'
   return $ foldr updateRule r parts
 
+parseRule :: Parser Rule
+parseRule = do
+  rule <- parseBaseRule
+  mrule <- parseSubsequent
+  return $ rule { nextRule = mrule }
+
+
+parseSubsequent :: Parser (Maybe Rule)
+parseSubsequent = do
+  try $ many space
+  mrule <- optionMaybe (try parseBaseRule)
+  case mrule of
+    Nothing -> return Nothing
+    Just rule -> do
+      r <- parseSubsequent
+      return $ Just $ rule { nextRule = r }
+
+
+
 parseArgument :: Parser Text
 parseArgument = pack <$> manyTill anyChar (try $ string "\"")
 
 testRule =
-  "SecRule REQUEST_URI \"@rx /*\" \"id:100057,msg:'hello!',chain\""
+  "SecRule REQUEST_URI \"@rx /*\" \"id:100057,msg:'hello!',chain\"\n\tSecRule REQUEST_URI \"@rx /*\" \"id:100057,msg:'hello!',chain\""
 
 runTest :: IO ()
 runTest = case parse parseRule "" testRule of
