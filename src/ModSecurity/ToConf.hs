@@ -14,7 +14,7 @@ class ToConf a where
 
 instance ToConf (Maybe Msg) where
   toConf Nothing = ""
-  toConf (Just m) = "msg:" <> getMsg m
+  toConf (Just m) = "msg:'" <> getMsg m <> "'"
 
 instance ToConf Variable where
   toConf RequestUri         = "REQUEST_URI"
@@ -71,10 +71,11 @@ instance ToConf Rule where
       , toConf (transforms rule)
       , "id:" <> toConf (rid rule)
       , toConf (msg rule)
+      , "phase:" <> pack (show $ phase rule)
       , chainstr
       ]
     <> if chain rule then "\n" <> toSubsequent "    " (nextRule rule) else ""
-        where chainstr = if chain rule then ",chain" else ""
+        where chainstr = if chain rule then "chain" else ""
               options :: [Text] -> Text
               options = mconcat . intersperse ","
 
