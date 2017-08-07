@@ -77,8 +77,8 @@ instance ToConf Rule where
       , "phase:" <> pack (show $ phase rule)
       , condString isChained "chain"
       ]
-    <> (condString isChained $ "\n" <> showSubsequent "    " (nextRule rule))
     <> "\""
+    <> (condString isChained $ "\n" <> showSubsequent "    " (nextRule rule))
         where isChained = chain rule
               options :: [Text] -> Text
               options = mconcat . intersperse "," . filter (/= "")
@@ -86,7 +86,7 @@ instance ToConf Rule where
 showSubsequent :: Text -> Maybe Rule -> Text
 showSubsequent _ Nothing = ""
 showSubsequent prefix (Just rule) = 
-  prefix <> "SecRule"
+  prefix <> "SecRule "
     <> toConf (vars rule) <> " \""
     <> toConf (operator rule) <> " "
     <> argument rule <> "\" \""
@@ -96,10 +96,10 @@ showSubsequent prefix (Just rule) =
       , "id:" <> toConf (rid rule)
       , toConf (msg rule)
       , "phase:" <> pack (show $ phase rule)
-      , chainstr
+      , condString isChained "chain"
       ]
-    <> if chain rule then "\n" <> showSubsequent (prefix <> "    ") (nextRule rule) else ""
     <> "\""
-        where chainstr = if chain rule then "chain" else ""
+    <> (condString isChained $ "\n" <> showSubsequent (prefix <> "    ") (nextRule rule))
+        where isChained = chain rule
               options :: [Text] -> Text
               options = mconcat . intersperse "," . filter (/= "")

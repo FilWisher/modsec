@@ -25,6 +25,14 @@ instance FromConf [Variable] where
     Left _ -> Nothing
     Right vars -> Just vars
 
+instance FromConf Operator where
+  fromConf ts = either (const Nothing) Just parsedOp
+    where parsedOp = parse parseOperator "" ts
+
+instance FromConf Rule where
+  fromConf ts = either (const Nothing) Just parsedRule
+    where parsedRule = parse parseRule "" ts
+
 parseVariable :: Parser Variable
 parseVariable = do
   var <- many (try (char '_') <|> try letter)
@@ -189,11 +197,15 @@ parseSubsequent = do
 parseArgument :: Parser Text
 parseArgument = pack <$> manyTill anyChar (try $ string "\"")
 
+testRule :: Text
 testRule =
-  "SecRule REQUEST_URI \"@rx /*\" \"id:100057,msg:'hello!',chain\"\n\tSecRule REQUEST_URI \"@rx /*\" \"id:100057,msg:'hello!',chain\""
+  "SecRule REQUEST_URI \"@rx /*\" \"id:100057,msg:'hello!',chain\"\n\tSecRule REQUEST_URI \"@rx /*\" \"id:100057,msg:'hello!'\""
+
+parsedRule :: Maybe Rule
+parsedRule = fromConf testRule
 
 runTest :: IO ()
-runTest = case parse parseRule "" testRule of
-  Left err -> print err >> fail "parse error"
-  Right rule -> putStrLn $ unpack $ toConf rule
+runTest = case parsedRule of
+  Nothing -> fail "parse error"
+  Just rule -> putStrLn $ unpack $ toConf rule
 
